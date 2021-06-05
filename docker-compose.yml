@@ -6,11 +6,29 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      - TZ=Asia/Tokyo
+      - MLFLOW_S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY}
+      - AWS_SECRET_ACCESS_KEY=${S3_SECRET_KEY}
     ports:
       - 5000:5000
-    command: mlflow server --host 0.0.0.0 --port 5000
-
-networks:
-  default:
-    external:
-      name: production
+    command: mlflow server --backend-store-uri 'postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}' --default-artifact-root '${S3_PATH}' --host 0.0.0.0 --port 5000
+    depends_on:
+      - db
+      - s3
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_DATABASE}
+  s3:
+    image: minio/minio
+    environment:
+      - MINIO_ACCESS_KEY=${S3_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${S3_SECRET_KEY}
+      - MINIO_REGION=${S3_REGION}
+    ports:
+      - 9000:9000
+    command: server /data
